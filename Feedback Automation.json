@@ -1,0 +1,165 @@
+{
+  "name": "Feedback Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "feedbacks",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        0
+      ],
+      "id": "b153096e-9c08-492e-9d04-7071a7a92638",
+      "name": "Webhook",
+      "webhookId": "8096bae8-bc72-494b-9271-ff9f4ef6ed5c"
+    },
+    {
+      "parameters": {
+        "tableId": "FEEDBACK",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=user-name",
+              "fieldValue": "={{ $json.body.name }}"
+            },
+            {
+              "fieldId": "user-email",
+              "fieldValue": "={{ $json.body.email }}"
+            },
+            {
+              "fieldId": "=message",
+              "fieldValue": "={{ $json.body.message }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        0
+      ],
+      "id": "71b9792d-0deb-4711-bdec-8c26d201275b",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "PipmWWuw8TKl8Vl3",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Dear {{ $('Webhook').item.json.body.name }} ,\n\nThank you for reaching out and sharing your message regarding{{ $json.message }} . I appreciate your time and the interest you have expressed.\n\nI will review the details provided and get back to you shortly if further action or discussion is required.\n\nBest Regards,\nUzma Niaz\nFounder ABC"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        48,
+        0
+      ],
+      "id": "c0a83b19-2c3e-4492-8998-ad93944a1ce4",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Create a row').item.json['user-email'] }}",
+        "subject": "review",
+        "message": "=Dear {{ $json.name }},  Thank you for reaching out and sharing your message regarding {{ $json.message }}. I appreciate your time and the interest you have expressed.  I will review the details provided and get back to you shortly if further action or discussion is required.  Best Regards, Uzma Niaz Founder ABC",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "a45b3ca5-129b-4cdd-9320-7d18264e8575",
+      "name": "Send a message",
+      "webhookId": "a5ce5c81-2929-46d3-9968-afccf02a4ab0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4434275b-334d-494f-996c-08a4159a062d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "59688e824b7872a5b4f5c980a72362aca7a1243918df031b4fe3b29731009062"
+  },
+  "nodeGroups": [],
+  "id": "EJI0uGX65tpv42mI",
+  "tags": []
+}
