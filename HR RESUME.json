@@ -1,0 +1,408 @@
+{
+  "name": "HR RESUME",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "efa2473b-a715-4ba8-b056-8235b108a7af",
+      "name": "Webhook",
+      "webhookId": "c311f85f-2e3a-46cf-8a10-caa2e8f878cf"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "resume",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f5ecd2dd-2600-4cff-b91d-c7c6c43d9eee",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an HR Manager.\n\nAnalyze the following resume.\n\nReturn ONLY valid JSON.\n\n{\n\"name\":\"\",\n\"resume_score\":\"\",\n\"ats_score\":\"\",\n\"skills_found\":[],\n\"missing_skills\":[],\n\"strengths\":[],\n\"weaknesses\":[],\n\"recommendation\":\"\",\n\"decision\":\"Accepted or Rejected\"\n}\n\nRules:\n\nResume Score = out of 100\n\nATS Score = out of 100\n\nFind technical skills.\n\nCompare with a Software Engineer job.\n\nList missing skills.\n\nGive strengths.\n\nGive weaknesses.\n\nDecision should only be:\nAccepted\nRejected"
+            },
+            {
+              "content": "=Candidate Name:  {{ $('Webhook').item.json.body.name }}\nCandidate Email: {{ $('Webhook').item.json.body.email }}\nWhy they want to join: {{ $('Webhook').item.json.body.why_join }}\n\nCandidate Resume Text: {{ $json.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        0
+      ],
+      "id": "85546f65-032f-49a5-9209-ff4719fc544a",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "Canditates",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user-name",
+              "fieldValue": "={{ $('Webhook').item.json.body.name }}"
+            },
+            {
+              "fieldId": "user-email",
+              "fieldValue": "={{ $('Webhook').item.json.body.email }}"
+            },
+            {
+              "fieldId": "skills",
+              "fieldValue": "={{ $json.output[0].content[0].text.skills_found }}"
+            },
+            {
+              "fieldId": "missing skills",
+              "fieldValue": "={{ $json.output[0].content[0].text.missing_skills }}"
+            },
+            {
+              "fieldId": "strength",
+              "fieldValue": "={{ $json.output[0].content[0].text.strengths }}"
+            },
+            {
+              "fieldId": "weakness",
+              "fieldValue": "={{ $json.output[0].content[0].text.weaknesses }}"
+            },
+            {
+              "fieldId": "ats score",
+              "fieldValue": "={{ $json.output[0].content[0].text.ats_score }}"
+            },
+            {
+              "fieldId": "resume score",
+              "fieldValue": "={{ $json.output[0].content[0].text.resume_score }}"
+            },
+            {
+              "fieldId": "decision",
+              "fieldValue": "={{ $json.output[0].content[0].text.decision }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        752,
+        0
+      ],
+      "id": "04fdd9cf-d571-42e7-aaa3-7fb9da86498a",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "PipmWWuw8TKl8Vl3",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "baebc4a9-ea48-43bb-ba55-d8a8776c1d9b",
+              "leftValue": "={{ $json['resume score'] }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "0cfeeba1-3f7b-4e1b-9c06-90aa729b9789",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        960,
+        0
+      ],
+      "id": "eac9021d-504b-44c6-937b-ca16402497eb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are an HR Manager.\n\nWrite a professional, respectful, and encouraging rejection email.\n\nCandidate Name:\n{{ $('Create a row').item.json['user-name'] }}\n\nInstructions:\n- Thank the candidate for applying.\n- Politely inform them that they have not been shortlisted for this position after careful consideration.\n- Encourage them to continue developing their skills and apply for future opportunities.\n- Wish them success in their career.\n- Do NOT mention Resume Score, ATS Score, weaknesses, or internal evaluation details.\n- Keep the tone positive and respectful.\n- End with \"Best Regards, HR Team\".\n\nReturn only the email body."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1376,
+        96
+      ],
+      "id": "cf49052a-9cd6-4815-9140-e324aa3066e3",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "SORRY",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        96
+      ],
+      "id": "9f2a76df-5837-4719-849e-c5bc01f2e030",
+      "name": "Send a message",
+      "webhookId": "85a506e7-1b5c-4766-bfb3-c87712cd8e4d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are an HR Manager.\n\nWrite a professional and friendly acceptance email.\n\nCandidate Name:\n{{ $('Create a row').item.json['user-name'] }}\n\nInstructions:\n- Congratulate the candidate.\n- Inform them that their application has been shortlisted after careful review.\n- Mention that the recruitment team will contact them regarding the next stage of the hiring process.\n- Thank them for their interest in the company.\n- Keep the tone warm, professional, and encouraging.\n- Do NOT mention Resume Score, ATS Score, or any internal evaluation.\n- End with \"Best Regards, HR Team\".\n\nReturn only the email body."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1376,
+        -96
+      ],
+      "id": "0c8dc829-20e5-4e19-a519-b43e47043253",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "Congratulations",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -96
+      ],
+      "id": "c071fbba-afbe-482b-a7a3-784ec79c48d0",
+      "name": "Send a message1",
+      "webhookId": "de8c2af5-2999-4589-a1aa-850e7bd358e6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "93f48e5b-8558-4b1c-a3a8-6c573de8bb52",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "59688e824b7872a5b4f5c980a72362aca7a1243918df031b4fe3b29731009062"
+  },
+  "nodeGroups": [],
+  "id": "cf9b1lE2O7TlUwYt",
+  "tags": []
+}
