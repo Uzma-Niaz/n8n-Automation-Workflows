@@ -1,0 +1,850 @@
+{
+  "name": "Invoice Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        0
+      ],
+      "id": "8db9b8fc-a10e-40ae-b54c-2d2c0c3acf4a",
+      "name": "Webhook",
+      "webhookId": "f5e77402-6fe3-4597-a710-1d6333b7419e"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "invoice",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1857862a-a508-41c9-a72d-f87179a24eb2",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert AI Invoice Processing Assistant.\n\nYour task is to analyze the extracted invoice text and accurately extract the required information.\n\nExtract and validate the following fields:\n\n1. vendor_name\n2. invoice_number\n3. amount\n4. due_date\n5. email\n6. status\n\nRules:\n- Read the entire invoice carefully before extracting values.\n- Vendor name may appear as \"Vendor\", \"Supplier\", \"Company\", \"Bill From\", or \"Sold By\".\n- Extract the invoice number exactly as written.\n- Extract the final payable amount only. \n- Convert the due date into YYYY-MM-DD format.\n- Extract the email address if one exists. If none is present, return null.\n- Set the status to \"Pending\".\n- If a field is not present, return null.\n- Do not guess or invent information.\n- Return ONLY valid JSON.\n- Do not include explanations, markdown, or extra text.Remove currency symbols and commas and return it as a number.\namount should be like  \"$000\" in dollar format \n\nReturn this exact JSON format:\n\n{\n  \"vendor_name\":{{ $json.text }} \"\",\n  \"invoice_number\": \"\",\n  \"amount\": $,\n  \"due_date\": \"\",\n  \"email\": \"{{ $('Webhook').item.json.body.email  }}\",\n  \"status\": \"Pending\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "43699622-a0ad-4dde-bf6e-077ba76762a3",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7ef1704d-c429-4fb6-96ac-59a0ab43cd8a",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "={{ $json['vendor-name'] }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f77acc18-49de-4ee2-ae85-40f1c8e551fb",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        0
+      ],
+      "id": "be86efeb-82a9-4467-8481-3dc0c9788c76",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a professional finance assistant.\n\nWrite a short, professional email informing the finance team that a duplicate invoice has been detected.\n\nThe email should:\n- Mention the vendor name.\n- Mention the invoice number.\n- Explain that the invoice already exists in the system.\n- Warn that processing it again may result in a duplicate payment.\n- Request the team to review the invoice before taking any further action.\n- Keep the tone formal and concise.\n\nDo not invent any information.\nEND LIKE THIS : Best Regards,\nAI Invoice Processing Agent"
+            },
+            {
+              "content": "=Generate a duplicate invoice alert email using the following details:\n\nVendor Name: {{ $json['vendor-name'] }}\nInvoice Number: {{ $json['invoice-number'] }}\nAmount: ${{ $json.amount }}\nDue Date: {{ $json['due date'] }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        -176
+      ],
+      "id": "ab006c71-03fd-4c7b-b645-5a0ad84ce822",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get a row').item.json.email }}",
+        "subject": "FRAUD ALERT!",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1456,
+        -176
+      ],
+      "id": "2fb165cb-ec32-4829-b2ee-e8bc0a508099",
+      "name": "Send a message",
+      "webhookId": "29ba8ed7-5e59-4447-a765-5e073b3fb61f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2ae24f14-66b5-454c-8484-0b18ff687aaa",
+              "leftValue": "={{ $('Message a model').item.json.output[0].content[0].text.amount }}",
+              "rightValue": 5000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1216,
+        144
+      ],
+      "id": "7118e91b-ffa9-48da-82bd-924c0589f499",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a professional finance assistant.\n\nGenerate a formal email requesting manager approval for a high-value invoice.\n\nThe email should:\n- Inform the manager that an invoice exceeds the approval threshold of $5,000.\n- Include the vendor name.\n- Include the invoice number.\n- Include the invoice amount.\n- Include the due date.\n- Politely request the manager to review and approve or reject the invoice.\n- Keep the tone professional, concise, and formal.\n\nReturn only the email subject and email body.\nGenerate a manager approval email for the following invoice:\n\nVendor Name: {{ $json['vendor-name'] }}\nInvoice Number: {{ $json['invoice-number'] }}\nAmount: ${{ $json.amount }}\nDue Date: {{ $json['due date'] }}\nEnd should be exactly like this best regards, AI invoice agent.. and dont mention managers name instread write \"dear manager\" thats it...also dont need to mention subject and stars in details"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        64
+      ],
+      "id": "625fcc57-864f-48ab-a4a0-d94affd0a7ae",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "Approval Required for Invoice INV-2005 from XYZ Office Supplies ",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        64
+      ],
+      "id": "b94d2639-f9d2-459d-9f1d-e50c0e73e5bb",
+      "name": "Send a message1",
+      "webhookId": "6004ac18-a4ee-4d6f-9fdc-628163500a6c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "vendor_name": "={{ $('Create a row').item.json['vendor-name'] }}",
+            "invoice_number": "={{ $('Create a row').item.json['invoice-number'] }}",
+            "amount": "={{ $('Create a row').item.json.amount }}",
+            "due_date": "={{ $('Create a row').item.json['due date'] }}",
+            "email": "={{ $('Create a row').item.json.email }}",
+            "status": "=Pending"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "vendor_name",
+              "displayName": "vendor_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "invoice_number",
+              "displayName": "invoice_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1952,
+        64
+      ],
+      "id": "dfcae09a-688a-455b-b005-34f5de4b7321",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rStCVE4qNE2K5rNE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "invoice table",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "invoice-number",
+              "keyValue": "={{ $json.output[0].content[0].text.invoice_number }}"
+            },
+            {
+              "keyName": "vendor-name",
+              "keyValue": "={{ $json.output[0].content[0].text.vendor_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        768,
+        0
+      ],
+      "id": "662a2905-2061-4980-9d25-e867df4e6ccd",
+      "name": "Get a row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "PipmWWuw8TKl8Vl3",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "invoice table",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "vendor-name",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.vendor_name }}"
+            },
+            {
+              "fieldId": "invoice-number",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.invoice_number }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.amount }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.email }}"
+            },
+            {
+              "fieldId": "due date",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.due_date }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=Pending"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        64
+      ],
+      "id": "a2913ac3-74ef-4359-9683-ba10c310abbe",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "PipmWWuw8TKl8Vl3",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "invoice table",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "vendor-name",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.vendor_name }}"
+            },
+            {
+              "fieldId": "invoice-number",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.invoice_number }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.amount }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.email }}"
+            },
+            {
+              "fieldId": "due date",
+              "fieldValue": "={{ $('Message a model').item.json.output[0].content[0].text.due_date }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=Accepted"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        288
+      ],
+      "id": "6b9e2213-436a-423e-84f7-7714194611fe",
+      "name": "Create a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "PipmWWuw8TKl8Vl3",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a professional customer support assistant.\n\nWrite a professional confirmation email informing the user that their invoice has been successfully received and approved.\n\nInclude the following invoice details:\n- Vendor Name: {{ $json['vendor-name'] }}\n- Invoice Number: {{ $json['invoice-number'] }}\n- Invoice Amount: ${{ $json.amount }}\n- Due Date: {{ $json['due date'] }}\n\nThe email should:\n- Begin with \"Dear User,\"\n- Thank the user for submitting their invoice.\n- Confirm that the invoice has been successfully received and automatically accepted.\n- Clearly mention that no manager approval was required because the invoice amount falls within the automatic approval threshold.\n- Inform the user that the invoice has been recorded successfully in the system and will be processed according to the standard payment schedule.\n- Mention that no further action is required from the user's side.\n- End with:\n\nBest regards,\nFinance Team\n\nKeep the tone professional, friendly, and concise.\nDo not include a subject line.\nDo not use markdown, bullet points, or emojis.\nReturn only the email body."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1536,
+        288
+      ],
+      "id": "a9a37c16-d81b-4968-9edd-a8962ed32a62",
+      "name": "Message a model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "nkV1WqGihHmqF49l",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Create a row1').item.json.email }}",
+        "subject": "Confirmation Of Invoice Reciept",
+        "emailType": "text",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        288
+      ],
+      "id": "60136c46-fb71-40c9-94ce-d3ed50d153b6",
+      "name": "Send a message2",
+      "webhookId": "c8858ea6-135a-4b73-88ca-8475e5750c7c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "o4q031s5r46o9YBk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM",
+          "mode": "list",
+          "cachedResultName": "invoices",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1hfav9scv7ZoqhqPNKVNYv47kDBzPxZrk1rEZ3WmN6IM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "vendor_name": "={{ $('Message a model').item.json.output[0].content[0].text.vendor_name }}",
+            "invoice_number": "={{ $('Message a model').item.json.output[0].content[0].text.invoice_number }}",
+            "amount": "={{ $('Message a model').item.json.output[0].content[0].text.amount }}",
+            "due_date": "={{ $('Message a model').item.json.output[0].content[0].text.due_date }}",
+            "email": "={{ $('Message a model').item.json.output[0].content[0].text.email }}",
+            "status": "=Accepted"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "vendor_name",
+              "displayName": "vendor_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invoice_number",
+              "displayName": "invoice_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1968,
+        288
+      ],
+      "id": "d660b10e-295f-46bf-86fe-82c01b1a89c3",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rStCVE4qNE2K5rNE",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row1": {
+      "main": [
+        [
+          {
+            "node": "Message a model3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model3": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f55d547e-811d-40a9-ab33-7e39eb6988a1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "59688e824b7872a5b4f5c980a72362aca7a1243918df031b4fe3b29731009062"
+  },
+  "nodeGroups": [],
+  "id": "BvPysgxdXzBFYLWw",
+  "tags": []
+}
